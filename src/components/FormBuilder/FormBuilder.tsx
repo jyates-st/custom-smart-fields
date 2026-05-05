@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { SmartFieldPicker } from './SmartFieldPicker';
-import { SmartFieldObject, SmartFieldDefinition, OBJECT_FIELDS } from './mockData';
+import { SmartFieldPicker, SmartFieldMapping } from './SmartFieldPicker';
+import { OBJECT_FIELDS } from './mockData';
 
 type FieldType =
   | 'Text'
@@ -13,11 +13,6 @@ type FieldType =
   | 'Date'
   | 'Signature'
   | 'Smart Field';
-
-interface SmartFieldMapping {
-  object: SmartFieldObject;
-  field: SmartFieldDefinition;
-}
 
 interface FormField {
   id: string;
@@ -33,9 +28,10 @@ const FIELD_TYPES: FieldType[] = [
   'Stoplight buttons', 'Picture', 'Date', 'Signature', 'Smart Field',
 ];
 
-const OBJECT_LABELS: Record<SmartFieldObject, string> = {
-  customer: 'Customer',
-  location: 'Location',
+const OBJECT_LABELS: Record<string, string> = {
+  general:   'General',
+  customer:  'Customer',
+  location:  'Location',
   equipment: 'Equipment',
 };
 

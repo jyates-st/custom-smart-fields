@@ -5,7 +5,7 @@ import {
   SmartFieldDefinition,
 } from './mockData';
 
-interface SmartFieldMapping {
+export interface SmartFieldMapping {
   object: SmartFieldObject;
   field: SmartFieldDefinition;
 }
@@ -15,29 +15,50 @@ interface Props {
   onChange: (mapping: SmartFieldMapping) => void;
 }
 
-const OBJECT_LABELS: Record<SmartFieldObject, string> = {
-  customer: 'Customer',
-  location: 'Location',
-  equipment: 'Equipment',
-};
+const TABS: { key: SmartFieldObject; label: string; icon: string; description: string }[] = [
+  { key: 'general',   label: 'General',   icon: 'hub',         description: 'Job, technician, and cross-object fields' },
+  { key: 'customer',  label: 'Customer',  icon: 'person',      description: 'Fields from the Customer record' },
+  { key: 'location',  label: 'Location',  icon: 'location_on', description: 'Fields from the Location record' },
+  { key: 'equipment', label: 'Equipment', icon: 'build',       description: 'Fields from the Equipment record' },
+];
 
 const DATA_TYPE_ICONS: Record<string, string> = {
-  text: 'text_fields',
-  number: 'tag',
-  date: 'calendar_today',
-  boolean: 'toggle_on',
+  text:     'text_fields',
+  number:   'tag',
+  date:     'calendar_today',
+  boolean:  'toggle_on',
   dropdown: 'arrow_drop_down_circle',
-  phone: 'phone',
-  email: 'email',
+  phone:    'phone',
+  email:    'email',
+};
+
+const KIND_CONFIG = {
+  system: {
+    label: 'System',
+    icon: 'verified',
+    bg: '#EFF6FF',
+    color: '#1D4ED8',
+    border: '#BFDBFE',
+    iconColor: '#2563EB',
+  },
+  custom: {
+    label: 'Custom',
+    icon: 'tune',
+    bg: '#F5F3FF',
+    color: '#6D28D9',
+    border: '#DDD6FE',
+    iconColor: '#7C3AED',
+  },
 };
 
 export function SmartFieldPicker({ value, onChange }: Props) {
-  const [selectedObject, setSelectedObject] = useState<SmartFieldObject>(
-    value?.object ?? 'customer'
+  const [selectedTab, setSelectedTab] = useState<SmartFieldObject>(
+    value?.object ?? 'general'
   );
   const [search, setSearch] = useState('');
 
-  const allFields = OBJECT_FIELDS[selectedObject];
+  const allFields = OBJECT_FIELDS[selectedTab];
+  const isGeneral = selectedTab === 'general';
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -46,146 +67,180 @@ export function SmartFieldPicker({ value, onChange }: Props) {
       (f) =>
         f.label.toLowerCase().includes(q) ||
         f.dataType.toLowerCase().includes(q) ||
+        f.kind.toLowerCase().includes(q) ||
         (f.description?.toLowerCase().includes(q) ?? false)
     );
   }, [allFields, search]);
 
-  const standardFields = filtered.filter((f) => f.type === 'standard');
-  const customFields = filtered.filter((f) => f.type === 'custom');
+  const systemFields = filtered.filter((f) => f.kind === 'system');
+  const customFields  = filtered.filter((f) => f.kind === 'custom');
 
-  function handleSelect(field: SmartFieldDefinition) {
-    onChange({ object: selectedObject, field });
-  }
-
-  function handleObjectChange(obj: SmartFieldObject) {
-    setSelectedObject(obj);
+  function handleTabChange(tab: SmartFieldObject) {
+    setSelectedTab(tab);
     setSearch('');
   }
 
+  const currentTabMeta = TABS.find((t) => t.key === selectedTab)!;
+
   return (
-    <div style={styles.wrapper}>
-      {/* Object tabs */}
-      <div style={styles.tabRow}>
-        {(Object.keys(OBJECT_LABELS) as SmartFieldObject[]).map((obj) => (
-          <button
-            key={obj}
-            style={{
-              ...styles.tab,
-              ...(selectedObject === obj ? styles.tabActive : {}),
-            }}
-            onClick={() => handleObjectChange(obj)}
-          >
-            {OBJECT_LABELS[obj]}
-          </button>
-        ))}
+    <div style={s.wrapper}>
+      {/* Tab row */}
+      <div style={s.tabRow}>
+        {TABS.map((tab) => {
+          const isActive = selectedTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              style={{ ...s.tab, ...(isActive ? s.tabActive : {}) }}
+              onClick={() => handleTabChange(tab.key)}
+              title={tab.description}
+            >
+              <span
+                className="material-symbols-rounded"
+                style={{ ...s.tabIcon, color: isActive ? '#0D9F6E' : '#9CA3AF' }}
+              >
+                {tab.icon}
+              </span>
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Sub-header: description + legend */}
+      <div style={s.subHeader}>
+        <span style={s.tabDesc}>{currentTabMeta.description}</span>
+        <div style={s.legend}>
+          {(['system', 'custom'] as const)
+            .filter((k) => !(isGeneral && k === 'custom'))
+            .map((k) => {
+              const cfg = KIND_CONFIG[k];
+              return (
+                <span
+                  key={k}
+                  style={{
+                    ...s.legendItem,
+                    background: cfg.bg,
+                    border: `1px solid ${cfg.border}`,
+                    color: cfg.color,
+                  }}
+                >
+                  <span className="material-symbols-rounded" style={{ fontSize: 12, color: cfg.iconColor }}>
+                    {cfg.icon}
+                  </span>
+                  {cfg.label}
+                </span>
+              );
+            })}
+        </div>
       </div>
 
       {/* Search */}
-      <div style={styles.searchRow}>
-        <span className="material-symbols-rounded" style={styles.searchIcon}>
-          search
-        </span>
+      <div style={s.searchRow}>
+        <span className="material-symbols-rounded" style={s.searchIcon}>search</span>
         <input
-          style={styles.searchInput}
-          placeholder={`Search ${OBJECT_LABELS[selectedObject]} fields...`}
+          style={s.searchInput}
+          placeholder={`Search ${currentTabMeta.label} fields...`}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           autoFocus
         />
         {search && (
-          <button style={styles.clearBtn} onClick={() => setSearch('')}>
+          <button style={s.clearBtn} onClick={() => setSearch('')}>
             <span className="material-symbols-rounded" style={{ fontSize: 16 }}>close</span>
           </button>
         )}
       </div>
 
       {/* Field list */}
-      <div style={styles.list}>
+      <div style={s.list}>
         {filtered.length === 0 && (
-          <div style={styles.empty}>No fields match "{search}"</div>
+          <div style={s.empty}>No fields match "{search}"</div>
         )}
 
-        {standardFields.length > 0 && (
+        {systemFields.length > 0 && (
           <FieldGroup
-            label="Standard Fields"
-            fields={standardFields}
+            label={`System Fields (${systemFields.length})`}
+            kind="system"
+            fields={systemFields}
             selectedId={value?.field.id}
-            onSelect={handleSelect}
+            onSelect={(field) => onChange({ object: selectedTab, field })}
           />
         )}
 
-        {customFields.length > 0 && (
+        {!isGeneral && customFields.length > 0 && (
           <FieldGroup
             label={`Custom Fields (${customFields.length})`}
+            kind="custom"
             fields={customFields}
             selectedId={value?.field.id}
-            onSelect={handleSelect}
+            onSelect={(field) => onChange({ object: selectedTab, field })}
           />
         )}
       </div>
 
-      {/* Current selection summary */}
+      {/* Selection confirmation bar */}
       {value && (
-        <div style={styles.selectionBar}>
-          <span className="material-symbols-rounded" style={{ fontSize: 16, color: '#0D9F6E' }}>
-            check_circle
-          </span>
-          <span style={styles.selectionText}>
-            Mapped to <strong>{OBJECT_LABELS[value.object]}</strong> →{' '}
+        <div style={s.selectionBar}>
+          <span className="material-symbols-rounded" style={{ fontSize: 16, color: '#0D9F6E' }}>check_circle</span>
+          <span style={s.selectionText}>
+            Mapped to{' '}
+            <strong>{TABS.find((t) => t.key === value.object)?.label}</strong>
+            {' → '}
             <strong>{value.field.label}</strong>
           </span>
+          <KindBadge kind={value.field.kind} />
         </div>
       )}
     </div>
   );
 }
 
+/* ── Field group ──────────────────────────────────────────── */
+
 function FieldGroup({
   label,
+  kind,
   fields,
   selectedId,
   onSelect,
 }: {
   label: string;
+  kind: 'system' | 'custom';
   fields: SmartFieldDefinition[];
   selectedId?: string;
   onSelect: (f: SmartFieldDefinition) => void;
 }) {
+  const cfg = KIND_CONFIG[kind];
   return (
-    <div style={groupStyles.section}>
-      <div style={groupStyles.groupLabel}>{label}</div>
+    <div style={g.section}>
+      <div style={{ ...g.groupHeader, borderLeft: `3px solid ${cfg.border}` }}>
+        <span className="material-symbols-rounded" style={{ fontSize: 14, color: cfg.iconColor }}>{cfg.icon}</span>
+        <span style={{ ...g.groupLabel, color: cfg.color }}>{label}</span>
+      </div>
       {fields.map((field) => {
         const isSelected = field.id === selectedId;
         return (
           <button
             key={field.id}
-            style={{
-              ...groupStyles.row,
-              ...(isSelected ? groupStyles.rowSelected : {}),
-            }}
+            style={{ ...g.row, ...(isSelected ? g.rowSelected : {}) }}
             onClick={() => onSelect(field)}
           >
             <span
               className="material-symbols-rounded"
-              style={{
-                ...groupStyles.typeIcon,
-                color: isSelected ? '#0D9F6E' : '#6B7280',
-              }}
+              style={{ ...g.typeIcon, color: isSelected ? '#0D9F6E' : '#9CA3AF' }}
             >
               {DATA_TYPE_ICONS[field.dataType] ?? 'text_fields'}
             </span>
-            <div style={groupStyles.labelBlock}>
-              <span style={groupStyles.fieldLabel}>{field.label}</span>
+            <div style={g.labelBlock}>
+              <span style={g.fieldLabel}>{field.label}</span>
               {field.description && (
-                <span style={groupStyles.fieldDesc}>{field.description}</span>
+                <span style={g.fieldDesc}>{field.description}</span>
               )}
             </div>
-            <span style={groupStyles.dataTypeBadge}>{field.dataType}</span>
+            <KindBadge kind={field.kind} />
             {isSelected && (
-              <span
-                className="material-symbols-rounded"
-                style={{ fontSize: 18, color: '#0D9F6E', marginLeft: 4 }}
-              >
+              <span className="material-symbols-rounded" style={{ fontSize: 18, color: '#0D9F6E', marginLeft: 4 }}>
                 check
               </span>
             )}
@@ -196,7 +251,35 @@ function FieldGroup({
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+/* ── Kind badge ───────────────────────────────────────────── */
+
+function KindBadge({ kind }: { kind: 'system' | 'custom' }) {
+  const cfg = KIND_CONFIG[kind];
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 3,
+      fontSize: 10,
+      fontWeight: 600,
+      letterSpacing: '0.04em',
+      textTransform: 'uppercase',
+      padding: '2px 7px 2px 5px',
+      borderRadius: 10,
+      background: cfg.bg,
+      color: cfg.color,
+      border: `1px solid ${cfg.border}`,
+      flexShrink: 0,
+    }}>
+      <span className="material-symbols-rounded" style={{ fontSize: 11, color: cfg.iconColor }}>{cfg.icon}</span>
+      {cfg.label}
+    </span>
+  );
+}
+
+/* ── Styles ───────────────────────────────────────────────── */
+
+const s: Record<string, React.CSSProperties> = {
   wrapper: {
     border: '1px solid #E5E7EB',
     borderRadius: 8,
@@ -211,8 +294,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   tab: {
     flex: 1,
-    padding: '8px 12px',
-    fontSize: 13,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    padding: '9px 8px',
+    fontSize: 12,
     fontWeight: 500,
     background: 'none',
     border: 'none',
@@ -225,6 +312,38 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#0D9F6E',
     borderBottom: '2px solid #0D9F6E',
     background: '#fff',
+  },
+  tabIcon: {
+    fontSize: 15,
+  },
+  subHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '6px 12px',
+    background: '#FAFAFA',
+    borderBottom: '1px solid #F3F4F6',
+    gap: 8,
+  },
+  tabDesc: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    flex: 1,
+  },
+  legend: {
+    display: 'flex',
+    gap: 6,
+  },
+  legendItem: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 3,
+    fontSize: 10,
+    fontWeight: 600,
+    padding: '2px 7px 2px 5px',
+    borderRadius: 10,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
   },
   searchRow: {
     display: 'flex',
@@ -255,7 +374,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 0,
   },
   list: {
-    maxHeight: 280,
+    maxHeight: 300,
     overflowY: 'auto',
   },
   empty: {
@@ -276,20 +395,25 @@ const styles: Record<string, React.CSSProperties> = {
   },
   selectionText: {
     fontSize: 12,
+    flex: 1,
   },
 };
 
-const groupStyles: Record<string, React.CSSProperties> = {
+const g: Record<string, React.CSSProperties> = {
   section: {
     paddingBottom: 4,
   },
+  groupHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '10px 12px 4px 10px',
+  },
   groupLabel: {
     fontSize: 11,
-    fontWeight: 600,
+    fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
-    color: '#9CA3AF',
-    padding: '10px 12px 4px',
   },
   row: {
     display: 'flex',
@@ -307,7 +431,7 @@ const groupStyles: Record<string, React.CSSProperties> = {
     background: '#F0FDF4',
   },
   typeIcon: {
-    fontSize: 18,
+    fontSize: 17,
     flexShrink: 0,
   },
   labelBlock: {
@@ -320,7 +444,6 @@ const groupStyles: Record<string, React.CSSProperties> = {
   fieldLabel: {
     fontSize: 13,
     color: '#111827',
-    fontWeight: 400,
   },
   fieldDesc: {
     fontSize: 11,
@@ -328,16 +451,5 @@ const groupStyles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
-  },
-  dataTypeBadge: {
-    fontSize: 10,
-    color: '#6B7280',
-    background: '#F3F4F6',
-    padding: '2px 6px',
-    borderRadius: 4,
-    flexShrink: 0,
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    fontWeight: 500,
   },
 };
